@@ -4,7 +4,7 @@ Ferramentas simples para explorar como a taxa de vagas em TI evoluiu na Europa u
 
 1. Coloque o arquivo baixado (`job_vacancies.xlsx`) dentro de `data/`.
 2. Execute `python scripts/job_vacancy_sheet19.py` para gerar:
-   - `data/sheet19_job_vacancies_tidy.csv`: tabela arrumada (`geo`, `quarter`, `vacancy_rate`) pronta para Power BI.
+   - `PowerBI/sheet19_job_vacancies_tidy.csv`: tabela arrumada (`geo`, `quarter`, `vacancy_rate`) pronta para Power BI.
    - `plots/sheet19_job_vacancies.png`: gráfico comparando alguns países/agrupamentos.
 3. Opcional: use `plots/first_row_progression.png` para visualizar rapidamente a evolução do primeiro elemento da tabela.
 
@@ -15,7 +15,7 @@ Ferramentas simples para explorar como a taxa de vagas em TI evoluiu na Europa u
 
 ## Power BI
 
-1. Abra o Power BI Desktop → `Get Data → Text/CSV` e selecione `data/sheet19_job_vacancies_tidy.csv`.
+1. Abra o Power BI Desktop → `Get Data → Text/CSV` e selecione `PowerBI/sheet19_job_vacancies_tidy.csv`.
 2. Confirme os tipos (especialmente `quarter` como Texto) e carregue.
 3. Use gráficos de linha/área para comparar `vacancy_rate` por `geo` ao longo de `quarter`.
 
