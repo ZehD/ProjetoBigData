@@ -1,43 +1,41 @@
 # Vagas de TI vs. Crescimento da IA (Eurostat + Power BI)
 
-Este repositório reúne dados públicos para investigar como as vagas em Tecnologia da Informação vêm diminuindo enquanto funções ligadas a Inteligência Artificial ganham espaço. A base principal é **ei_lmjv_q_r2** (Eurostat), que acompanha taxas de vagas no setor “Information and Communication” para países europeus entre 2023‑2025.
+Repositorio com dados publicos para comparar a evolucao das vagas tradicionais de TI com funcoes ligadas a IA. A base principal e a **ei_lmjv_q_r2** (Eurostat), com taxas de vagas no setor Information and Communication para paises europeus entre 2023 e 2025.
 
-## Visão Geral
+## Visao geral
 
-- 🎯 **Objetivo**: comparar a trajetória das vagas tradicionais de TI com a demanda por papéis de IA, produzindo gráficos que ajudem a contar essa narrativa no Power BI.
-- 📊 **Fonte**: arquivo XLSX do Eurostat (planilha 19, com recortes por país/quarter). Novas fontes focadas em IA podem ser adicionadas posteriormente em `data/`.
-- 🛠 **Ferramentas**: Python 3.10+, pandas, openpyxl, matplotlib para limpeza/visualização inicial; Power BI para dashboards.
+- **Objetivo**: gerar tabelas arrumadas e graficos para contar a historia de queda de vagas de TI versus aumento de papeis de IA.
+- **Fonte**: arquivo XLSX do Eurostat (qualquer aba que siga o layout padrao: primeira coluna `geo`, demais colunas por trimestre + flags).
+- **Ferramentas**: Python 3.10+, pandas, openpyxl, matplotlib; Power BI para dashboard final.
 
-## Fluxo de Trabalho
+## Fluxo de trabalho
 
-1. Coloque o arquivo baixado (`job_vacancies.xlsx`) dentro da pasta `data/`.
-2. Execute o script abaixo para gerar os artefatos:
+1. Coloque o arquivo baixado `job_vacancies.xlsx` em `data/`.
+2. Rode o script generico apontando a aba desejada (padrao: `Sheet 19`). Opcao rapida interativa:
    ```bash
-   python scripts/job_vacancy_sheet19.py \
-       --excel-path data/job_vacancies.xlsx \
-       --csv-output PowerBI/sheet19_job_vacancies_tidy.csv \
-       --output plots/sheet19_job_vacancies.png
+   python scripts/gerar_grafico_vagas.py --interativo
    ```
-   - `PowerBI/sheet19_job_vacancies_tidy.csv`: tabela arrumada (`geo`, `quarter`, `vacancy_rate`) pronta para ingestão.
-   - `plots/sheet19_job_vacancies.png`: comparação entre blocos (UE27, Eurozona, países selecionados).
-3. (Opcional) Rode scripts auxiliares para análises pontuais, como `plots/first_row_progression.png`, que mostra o movimento do primeiro país listado (normalmente UE27).
+   Ou modo parametrizado:
+   ```bash
+   python scripts/gerar_grafico_vagas.py \
+       --caminho-excel data/job_vacancies.xlsx \
+       --aba "Sheet 19" \
+       --paises "European Union - 27 countries (from 2020)" "Germany"
+   ```
+   - CSV arrumado: `PowerBI/tabela_vagas_<aba>.csv` (troque com `--saida-csv` ou pule com `--sem-csv`).
+   - Grafico de linhas: `plots/grafico_vagas_<aba>.png` (troque com `--saida-grafico` ou pule com `--sem-grafico`).
+3. Para trocar de aba basta mudar `--aba` (ex.: `--aba "Sheet 20"`). Se a linha do cabecalho ou dos dados mudar, ajuste `--linha-cabecalho` e `--linha-dados` (indices zero-based).
 
 ## Power BI
 
-1. Abra o Power BI Desktop → `Get Data → Text/CSV` → `PowerBI/sheet19_job_vacancies_tidy.csv`.
-2. Ajuste os tipos de dados (mantenha `quarter` como texto para preservar a ordem cronológica customizada do script).
-3. Utilize gráficos de linha para confrontar `vacancy_rate` por país/bloco, criando narrativas como:
-   - Queda de vagas em TI vs. crescimento em países com maior adoção de IA.
-   - Diferença entre blocos (UE27, Eurozona, países nórdicos) ao longo dos quarters.
+1. Importe `PowerBI/tabela_vagas_<aba>.csv` via `Get Data -> Text/CSV`.
+2. Mantenha `trimestre` como texto para preservar a ordem definida pelo script.
+3. Use graficos de linha comparando `taxa_vaga` por `geo` para contar a narrativa desejada (queda em TI vs. crescimento em IA, blocos UE27 vs. Eurozona, etc.).
 
-Com o CSV arrumado, você pode combinar facilmente outras fontes (por exemplo, relatórios do LinkedIn, WEF, OECD sobre vagas em IA) criando relacionamentos por país/ano e destacando como o avanço da IA impacta o emprego tech.
-
-## Requisitos Técnicos
+## Requisitos tecnicos
 
 - Python 3.10 ou superior.
 - Bibliotecas: `pandas`, `openpyxl`, `matplotlib`.
   ```bash
   pip install pandas openpyxl matplotlib
   ```
-
-Sinta-se à vontade para abrir issues ou PRs adicionando novas fontes (Eurostat, OECD, WEF, etc.), scripts comparativos ou dashboards Power BI.***
