@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
 """
-Gera um CSV arrumado e um grafico de linhas a partir de qualquer aba do arquivo
-de vagas da Eurostat que siga o layout padrao (primeira coluna geo, colunas por trimestre).
-
-Uso rapido:
-    python scripts/gerar_grafico_vagas.py --aba "Sheet 19"
-
-Modo interativo (recomendado para testar):
-    python scripts/gerar_grafico_vagas.py --interativo
+Script simples e interativo:
+- Lista as abas do arquivo data/job_vacancies.xlsx
+- Voce escolhe a aba (apenas isso)
+- Gera CSV arrumado e grafico PNG com padroes fixos
 """
 
 from __future__ import annotations
 
-import argparse
 import re
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
@@ -21,6 +16,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
+# Caminho padrao do arquivo baixado da Eurostat.
+ARQUIVO_PADRAO = Path("data") / "job_vacancies.xlsx"
+# Lista de geos padrao para o grafico e validacao rapida.
 PAISES_PADRAO = [
     "European Union - 27 countries (from 2020)",
     "Euro area - 20 countries (from 2023)",
@@ -37,10 +35,7 @@ def slugificar(nome_aba: str) -> str:
 
 
 def montar_nomes_colunas(linha_cabecalho: Sequence[object]) -> List[str]:
-    """
-    Propaga os rotulos de trimestre da Eurostat.
-    Quando a celula do cabecalho esta vazia, assume que e o flag da coluna anterior.
-    """
+    """Propaga os rotulos de trimestre; cabecalhos vazios viram flags."""
     colunas: List[str] = []
     for idx, valor in enumerate(linha_cabecalho):
         if idx == 0:
@@ -56,15 +51,17 @@ def montar_nomes_colunas(linha_cabecalho: Sequence[object]) -> List[str]:
 def carregar_tabela_vagas(
     caminho_excel: Path,
     nome_aba: str,
-    linha_cabecalho: int,
-    linha_inicio_dados: int,
+    linha_cabecalho: int = 10,
+    linha_inicio_dados: int = 12,
 ) -> Tuple[pd.DataFrame, List[str], str | None]:
     """
     Converte a aba da Eurostat em um DataFrame arrumado (geo, trimestre, taxa de vagas).
-    Linhas sao indexadas em zero: por padrao, cabecalho na linha 10 e dados a partir da linha 12.
+    Linhas sao indexadas em zero: cabecalho na linha 10 e dados a partir da linha 12.
     """
+    # Carrega a aba bruta sem inferir cabecalho.
     bruto = pd.read_excel(caminho_excel, sheet_name=nome_aba, header=None)
 
+    # Captura a area/industria descrita na celula C7.
     area_trabalho: str | None = None
     try:
         celula_area = bruto.iloc[6, 2]
@@ -76,6 +73,7 @@ def carregar_tabela_vagas(
     cabecalho = bruto.iloc[linha_cabecalho]
     colunas = montar_nomes_colunas(cabecalho)
 
+    # Mantem apenas linhas com geo e pivotamento para formato longo.
     dados = bruto.iloc[linha_inicio_dados:].reset_index(drop=True)
     dados.columns = colunas
     dados = dados[dados["geo"].notna()]
@@ -122,34 +120,25 @@ def plotar_taxa_vagas(
     plt.close(fig)
 
 
-def solicitar_int(msg: str, padrao: int) -> int:
-    """Pergunta um inteiro no terminal, aceitando Enter como default."""
-    entrada = input(f"{msg} [{padrao}]: ").strip()
-    if entrada == "":
-        return padrao
+def listar_abas_excel(caminho_excel: Path) -> List[Tuple[str, str | None]]:
+    """Retorna lista de (aba, area) lendo a celula C7 de cada aba."""
     try:
-        return int(entrada)
-    except ValueError:
-        print("Valor invalido, usando padrao.")
-        return padrao
+        import openpyxl
+    except ImportError as exc:
+        raise SystemExit("Dependencia openpyxl ausente. Instale com: pip install openpyxl") from exc
 
-
-def solicitar_lista_paises(padrao: List[str]) -> List[str]:
-    """Pergunta lista de geos separada por virgula ou ponto-e-virgula."""
-    entrada = input(
-        "Quais geos deseja plotar? Separe por virgula ou ponto-e-virgula "
-        f"(Enter para padrao: {', '.join(padrao)}): "
-    ).strip()
-    if entrada == "":
-        return padrao
-    separador = ";" if ";" in entrada else ","
-    return [parte.strip() for parte in entrada.split(separador) if parte.strip()]
-
-
-def listar_abas_excel(caminho_excel: Path) -> List[str]:
-    """Retorna as abas disponiveis no XLSX."""
-    with pd.ExcelFile(caminho_excel) as xls:
-        return list(xls.sheet_names)
+    # Carrega workbook em modo somente leitura para inspecionar cabecalho.
+    wb = openpyxl.load_workbook(caminho_excel, read_only=True, data_only=True)
+    abas: List[Tuple[str, str | None]] = []
+    for nome in wb.sheetnames:
+        try:
+            valor = wb[nome]["C7"].value
+            area = str(valor) if valor is not None else None
+        except Exception:
+            area = None
+        abas.append((nome, area))
+    wb.close()
+    return abas
 
 
 def mostrar_resumo(
@@ -177,22 +166,24 @@ def mostrar_resumo(
 
 
 def fluxo_interativo(caminho_excel: Path) -> None:
-    """Pergunta aba/parametros no terminal e gera CSV + PNG."""
+    """Fluxo unico: escolher aba e gerar CSV + PNG com padroes fixos."""
     if not caminho_excel.exists():
         raise SystemExit(f"Arquivo nao encontrado: {caminho_excel}")
 
+    # Lista abas com a area (C7) e monta menu numerado.
     abas = listar_abas_excel(caminho_excel)
     if not abas:
         raise SystemExit("Nenhuma aba encontrada no XLSX.")
 
     print("Abas encontradas no arquivo:")
-    for idx, aba in enumerate(abas, start=1):
-        print(f"  [{idx}] {aba}")
+    for idx, (aba, area) in enumerate(abas, start=1):
+        sufixo = f" - {area}" if area else ""
+        print(f"  [{idx}] {aba}{sufixo}")
 
     escolha = input("Digite o numero da aba que deseja usar: ").strip()
     try:
         idx_escolhido = int(escolha) - 1
-        nome_aba = abas[idx_escolhido]
+        nome_aba = abas[idx_escolhido][0]
     except (ValueError, IndexError):
         raise SystemExit("Escolha invalida. Execute novamente e selecione um numero da lista.")
 
@@ -200,6 +191,7 @@ def fluxo_interativo(caminho_excel: Path) -> None:
     caminho_csv = Path("PowerBI") / f"tabela_vagas_{slug_aba}.csv"
     caminho_grafico = Path("plots") / f"grafico_vagas_{slug_aba}.png"
 
+    # Carrega dados, valida geos padrao e mostra resumo.
     dados_arrumados, ordem_trimestres, area_trabalho = carregar_tabela_vagas(
         caminho_excel=caminho_excel,
         nome_aba=nome_aba,
@@ -216,6 +208,7 @@ def fluxo_interativo(caminho_excel: Path) -> None:
 
     mostrar_resumo(dados_arrumados, ordem_trimestres, nome_aba, area_trabalho)
 
+    # Exporta artefatos finais com nomes padrao.
     caminho_csv.parent.mkdir(parents=True, exist_ok=True)
     dados_arrumados.to_csv(caminho_csv, index=False)
     print(f"Tabela arrumada salva em {caminho_csv}")
@@ -224,104 +217,8 @@ def fluxo_interativo(caminho_excel: Path) -> None:
     print(f"Grafico salvo em {caminho_grafico}")
 
 
-def receber_argumentos() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Gera CSV arrumado e grafico de vagas a partir de qualquer aba no layout Eurostat."
-    )
-    parser.add_argument(
-        "--caminho-excel",
-        type=Path,
-        default=Path("data") / "job_vacancies.xlsx",
-        help="Caminho do arquivo XLSX baixado da Eurostat.",
-    )
-    parser.add_argument(
-        "--aba",
-        default="Sheet 19",
-        help="Nome da aba que segue o layout original (primeira coluna geo, demais trimestres).",
-    )
-    parser.add_argument(
-        "--paises",
-        nargs="+",
-        default=PAISES_PADRAO,
-        help="Rotulos de geo a exibir no grafico.",
-    )
-    parser.add_argument(
-        "--linha-cabecalho",
-        type=int,
-        default=10,
-        help="Indice (zero-based) da linha do cabecalho onde estao os trimestres.",
-    )
-    parser.add_argument(
-        "--linha-dados",
-        type=int,
-        default=12,
-        help="Indice (zero-based) da primeira linha com dados de pais.",
-    )
-    parser.add_argument(
-        "--saida-csv",
-        type=Path,
-        help="Caminho opcional do CSV arrumado. Se omitido, sera salvo em PowerBI/tabela_vagas_<aba>.csv.",
-    )
-    parser.add_argument(
-        "--saida-grafico",
-        type=Path,
-        help="Caminho opcional do grafico. Se omitido, sera salvo em plots/grafico_vagas_<aba>.png.",
-    )
-    parser.add_argument(
-        "--sem-csv",
-        action="store_true",
-        help="Nao salvar o CSV arrumado.",
-    )
-    parser.add_argument(
-        "--sem-grafico",
-        action="store_true",
-        help="Nao salvar o grafico.",
-    )
-    parser.add_argument(
-        "--interativo",
-        action="store_true",
-        help="Pergunta a aba e parametros pelo terminal, gera CSV e grafico automaticamente.",
-    )
-    return parser.parse_args()
-
-
-def fluxo_argumentos(args: argparse.Namespace) -> None:
-    """Mantem o modo antigo parametrizado por argumentos."""
-    slug_aba = slugificar(args.aba)
-    caminho_csv = args.saida_csv or (Path("PowerBI") / f"tabela_vagas_{slug_aba}.csv")
-    caminho_grafico = args.saida_grafico or (Path("plots") / f"grafico_vagas_{slug_aba}.png")
-
-    dados_arrumados, ordem_trimestres, _ = carregar_tabela_vagas(
-        caminho_excel=args.caminho_excel,
-        nome_aba=args.aba,
-        linha_cabecalho=args.linha_cabecalho,
-        linha_inicio_dados=args.linha_dados,
-    )
-
-    faltantes = [geo for geo in args.paises if geo not in dados_arrumados["geo"].unique()]
-    if faltantes:
-        print(f"Aviso: estes geos nao foram encontrados e serao ignorados: {', '.join(faltantes)}")
-
-    paises_validos = [geo for geo in args.paises if geo in dados_arrumados["geo"].unique()]
-    if not paises_validos:
-        raise SystemExit("Nenhum geo valido restou para plotar. Ajuste os nomes e tente de novo.")
-
-    if not args.sem_csv:
-        caminho_csv.parent.mkdir(parents=True, exist_ok=True)
-        dados_arrumados.to_csv(caminho_csv, index=False)
-        print(f"Tabela arrumada salva em {caminho_csv}")
-
-    if not args.sem_grafico:
-        plotar_taxa_vagas(dados_arrumados, ordem_trimestres, paises_validos, args.aba, caminho_grafico)
-        print(f"Grafico salvo em {caminho_grafico}")
-
-
 def main() -> None:
-    args = receber_argumentos()
-    if args.interativo:
-        fluxo_interativo(args.caminho_excel)
-    else:
-        fluxo_argumentos(args)
+    fluxo_interativo(ARQUIVO_PADRAO)
 
 
 if __name__ == "__main__":

@@ -11,19 +11,14 @@ Repositorio com dados publicos para comparar a evolucao das vagas tradicionais d
 ## Fluxo de trabalho
 
 1. Coloque o arquivo baixado `job_vacancies.xlsx` em `data/`.
-2. Rode o script generico apontando a aba desejada (padrao: `Sheet 19`). Opcao rapida interativa:
+2. Rode o script (ele ja e interativo por padrao, so pede o numero da aba):
    ```bash
-   python scripts/gerar_grafico_vagas.py --interativo
+   python scripts/gerar_grafico_vagas.py
    ```
-   Ou modo parametrizado:
-   ```bash
-   python scripts/gerar_grafico_vagas.py \
-       --caminho-excel data/job_vacancies.xlsx \
-       --aba "Sheet 19" \
-       --paises "European Union - 27 countries (from 2020)" "Germany"
-   ```
-   - CSV arrumado: `PowerBI/tabela_vagas_<aba>.csv` (troque com `--saida-csv` ou pule com `--sem-csv`).
-   - Grafico de linhas: `plots/grafico_vagas_<aba>.png` (troque com `--saida-grafico` ou pule com `--sem-grafico`).
+   - Escolha a aba pelo numero listado.
+   - O script usa padroes para cabecalho/dados e geos, mostra um resumo (incluindo a area da celula C7) e salva:
+     - CSV arrumado: `PowerBI/tabela_vagas_<aba>.csv`
+     - Grafico de linhas: `plots/grafico_vagas_<aba>.png`
 3. Para trocar de aba basta mudar `--aba` (ex.: `--aba "Sheet 20"`). Se a linha do cabecalho ou dos dados mudar, ajuste `--linha-cabecalho` e `--linha-dados` (indices zero-based).
 
 ## Power BI
